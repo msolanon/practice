@@ -1,7 +1,6 @@
 const express = require("express");
 const db = require("./config");
 const mongoose = require("mongoose");
-const morgan = require('morgan');
 var cors = require('cors')
 
 
@@ -27,6 +26,8 @@ class App {
     routes() {
         this.express.use(cors());
         this.express.use(require("./routes/authentication"));
+        this.express.use(require("./routes/colegio"));
+
     }
 }
 
