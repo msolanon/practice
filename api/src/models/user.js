@@ -3,14 +3,57 @@ const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema(
     {
-        nombre: {
+        nombreCompleto: {
             type: String,
             required: true
+        },
+        cedula: {
+            type: String,
+            required: true
+        },
+        carne: {
+            type: Array,
+            required: true
+        },
+        carrera: {
+            type: Array
+        },
+        estado: {
+            type: Boolean,
+            required: true
+        },
+        password: {
+            type: String
+        },
+        correo: {
+            type: String,
+            required: true
+        },
+        colegio: {
+            type: Array
+        },
+        cargo: {
+            type: Array
+        },
+        empleado: {
+            type: Boolean,
+            required: true
+        },
+        contrasena: {
+            type: Boolean,
+            required: true
+        },
+        cuenta: {
+            type: String,
+            required: true
+        },
+        isAdmin: {
+            type: Boolean,
+            required: true
         }
+
     },
-    {
-        timestamps: true
-    }
+
 );
 
 module.exports = mongoose.model("User", UserSchema);

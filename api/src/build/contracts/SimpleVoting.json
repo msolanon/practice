@@ -12698,12 +12698,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x1C0219336cCCc3194BD316173871E85796fd0e7D",
-      "transactionHash": "0x52e1d23f49418e88bab9c2e9d2b92ac42c556c68d22cf4131ea6f8fdf9110acf"
+      "address": "0xfDcdEb4e5c49Ff6443b3f8Cc8b3ebeDB10A6da59",
+      "transactionHash": "0x85bc0cae8b29278be0ea3262f0149e2e16ce2beb7abe1e0dc75661f215c31373"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2024-03-10T04:36:43.775Z",
+  "updatedAt": "2024-09-13T03:48:15.077Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

@@ -1,24 +1,23 @@
-const user = require("../models/user");
+const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 
 class AuthenticationController {
-    async verify(req, res, next) {
+    async signin(req, res) {
         try {
-            const bearerHeader = req.headers['authorization'];
-            if (bearerHeader !== undefined) {
-                console.log('entré')
-                const bearerToken = bearerHeader.split(" ")[1];
-                console.log(bearerToken);
-                jwt.verify(bearerToken, 'secretkey', (err, authData) => {
-                    if (err) {
-                        res.sendStatus(403)
-                    } else {
-                        res.json({
-                            message: 'Post Created',
-                            authData
-                        })
-                    }
-                })
+            const { cedula, password } = req.body;
+            let identity;
+            if (cedula && password) {
+                identity = await User.findOne({ "cedula": cedula, "password": password })
+            }
+            if (identity && identity['_id']) {
+                let payload = { "id": identity['_id'] };
+                jwt.sign(payload, 'secret', (err, token) => {
+                    res.json({
+                        token
+                    })
+                });
+            } else {
+                throw Error;
             }
         } catch (err) {
             res.status(500).send({
@@ -28,34 +27,7 @@ class AuthenticationController {
         }
     };
 
-    async signin(req, res) {
-        try {
-            jwt.sign({ user: user }, 'secretkey', (err, token) => {
-                res.json({
-                    token
-                })
-            });
-        } catch (err) {
-            res.status(500).send({
-                message:
-                    err.message || "Error authenticating user"
-            });
-        }
-    };
 
-    async verifyToken(req, res, next) {
-        const bearerHeader = req.headers['authorization'];
-        console.log(bearerHeader, 'soy prueba')
-        if (bearerHeader !== undefined) {
-            console.log('entré')
-            const bearerToken = bearerHeader.split(" ")[1];
-            req.token = bearerToken;
-            this.verify()
-            next();
-        } else {
-            res.sendStatus(403);
-        }
-    }
 }
 
 module.exports = new AuthenticationController();

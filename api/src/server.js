@@ -25,7 +25,7 @@ class App {
 
     routes() {
         this.express.use(cors());
-        this.express.use(require("./routes/authentication"));
+        this.express.use(require("./routes/user"));
         this.express.use(require("./routes/colegio"));
 
     }
