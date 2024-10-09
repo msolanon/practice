@@ -8,6 +8,10 @@ const ColegioSchema = new mongoose.Schema(
         nombre: {
             type: String,
             required: true
+        },
+        abreviatura: {
+            type: String,
+            required: true
         }
     }
 );

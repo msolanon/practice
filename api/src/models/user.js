@@ -29,9 +29,7 @@ const UserSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        colegio: {
-            type: Array
-        },
+        colegio: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Colegio' }], 
         cargo: {
             type: Array
         },

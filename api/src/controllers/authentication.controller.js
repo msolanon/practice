@@ -26,8 +26,6 @@ class AuthenticationController {
             });
         }
     };
-
-
 }
 
 module.exports = new AuthenticationController();
