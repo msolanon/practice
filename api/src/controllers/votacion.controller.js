@@ -74,10 +74,6 @@ class VotacionController {
         }
     };
 
-    async agregarVotacionContract() {
-
-    }
-
     async getVotaciones(req, res, next) {
         const user = await tokenController.getUserIdByToken(req, res, next);
         let data;

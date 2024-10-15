@@ -8,6 +8,7 @@ const routes = express.Router();
 routes.post('/login', authentication.signin);
 routes.get('/user/colegio/:idColegio', tokenController.verifyToken, userController.userByColegio);
 routes.post('/user/Add', tokenController.verifyToken, userController.agregarMiembro);
+routes.put('/user/updateStatus/:idUser', tokenController.verifyToken, userController.updateStatus);
 
 
 module.exports = routes;
