@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const mongoose = require("mongoose");
+const tokenController = require("./token.controller");
 
 
 class UserController {
@@ -81,9 +82,10 @@ class UserController {
                 const { estado } = req.body
                 const { idUser } = req.params
                 try {
-                    if (estado && idUser) {
+                    if (estado !== undefined && idUser) {
                         data = await User.updateOne({
-                            _id: new mongoose.Types.ObjectId(idUser),
+                            _id: new mongoose.Types.ObjectId(idUser)
+                        }, {
                             estado
                         });
                     }
