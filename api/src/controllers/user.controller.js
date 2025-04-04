@@ -18,6 +18,7 @@ class UserController {
                         const index = colegioArray.findIndex(c => c.equals(idColegio));
 
                         return {
+                            _id: member['_id'],
                             cedula: member.cedula,
                             isAdmin: member.isAdmin,
                             nombreCompleto: member.nombreCompleto,

@@ -2,6 +2,7 @@ const { Web3 } = require("web3");
 const votacion = require("../models/votacion");
 const tokenController = require("./token.controller");
 const config = require("../config");
+const { default: mongoose } = require("mongoose");
 const web3 = new Web3(config.NODE_URL);
 votingContract = require('../build/contracts/SimpleVoting.json')
 const simpleVoting = new web3.eth.Contract(votingContract.abi, votingContract.networks['5777'].address);
@@ -13,31 +14,57 @@ class VotacionController {
             const user = await tokenController.getUserIdByToken(req, res, next);
             if (user.isAdmin) {
                 const {
+                    colegio,
                     cargo,
-                    fechaHoraInicio,
-                    minutos,
+                    tipoVotacion,
+                    fechaInicio,
+                    horaInicio,
+                    fechaFin,
+                    horaFin,
                     candidatos,
                 } = req.body
                 let data = {};
+
                 try {
+                    let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
+                    let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
+                    let fechaHoraFin = new Date(fechaFin);
+                    fechaHoraFin.setHours(horaFin.split(':')[0], horaFin.split(':')[1], '00', '00');
+                    let fechaHoraInicio = new Date(fechaInicio);
+                    fechaHoraInicio.setHours(horaInicio.split(':')[0], horaInicio.split(':')[1], '00', '00');
+                    let minutos = Math.round((fechaHoraFin - fechaHoraInicio) / 60000);
+
+
                     if (req.body) {
                         let counter = await simpleVoting
                             .methods.counter
                             .call()
                             .call()
-
+                        const solidityDate = Math.floor(fechaHoraInicio.getTime() / 1000)
+                        console.log(solidityDate);
                         const transaction = await simpleVoting
                             .methods.createBallot(
-                                cargo, candidatos, fechaHoraInicio, minutos
+                                cargo, candidatos, solidityDate, minutos
                             )
                             .send({
-                                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',
+                                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',//dinamico despúes
                                 gas: 3000000
                             })
 
                         counter = Number(counter)
-
-                        data = await votacion.create({ ...req.body, counter });
+                        console.log(counter);
+                        data = await votacion.create({
+                            cargo,
+                            tipoVotacion,
+                            fechaHoraInicio,
+                            fechaHoraFin,
+                            counter,
+                            candidatos: candidatosId,
+                            colegio: colegioId,
+                            minutos,
+                            estado: true,
+                        }); //add counter
+                        console.log(data)
 
                         res.json({
                             message: 'Votacion creada',

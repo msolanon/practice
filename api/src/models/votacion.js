@@ -3,7 +3,12 @@ const mongoose = require("mongoose");
 
 const VotacionSchema = new mongoose.Schema(
     {
-        tipo: {
+        colegio: { type: mongoose.Schema.Types.ObjectId, ref: 'Colegio', required: true },
+        cargo: {
+            type: String,
+            required: true
+        },
+        tipoVotacion: { // Junta directiva
             type: String,
             required: true
         },
@@ -11,8 +16,8 @@ const VotacionSchema = new mongoose.Schema(
             type: Date,
             required: true
         },
-        cargo: {
-            type: String,
+        fechaHoraFin: {
+            type: Date,
             required: true
         },
         minutos: {
@@ -24,7 +29,6 @@ const VotacionSchema = new mongoose.Schema(
             required: true
         },
         candidatos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
-        colegio: { type: mongoose.Schema.Types.ObjectId, ref: 'Colegio', required: true },
         estado: {
             type: Boolean
         },
