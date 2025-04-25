@@ -3,6 +3,7 @@ const votacion = require("../models/votacion");
 const tokenController = require("./token.controller");
 const config = require("../config");
 const { default: mongoose } = require("mongoose");
+const { parseDateTime } = require("../utils/parseDateTime");
 const web3 = new Web3(config.NODE_URL);
 votingContract = require('../build/contracts/SimpleVoting.json')
 const simpleVoting = new web3.eth.Contract(votingContract.abi, votingContract.networks['5777'].address);
@@ -28,10 +29,8 @@ class VotacionController {
                 try {
                     let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
                     let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
-                    let fechaHoraFin = new Date(fechaFin);
-                    fechaHoraFin.setHours(horaFin.split(':')[0], horaFin.split(':')[1], '00', '00');
-                    let fechaHoraInicio = new Date(fechaInicio);
-                    fechaHoraInicio.setHours(horaInicio.split(':')[0], horaInicio.split(':')[1], '00', '00');
+                    let fechaHoraFin = parseDateTime(fechaFin);
+                    let fechaHoraInicio = parseDateTime(fechaFin);
                     let minutos = Math.round((fechaHoraFin - fechaHoraInicio) / 60000);
 
 
@@ -52,7 +51,6 @@ class VotacionController {
                             })
 
                         counter = Number(counter)
-                        console.log(counter);
                         data = await votacion.create({
                             cargo,
                             tipoVotacion,
@@ -64,8 +62,6 @@ class VotacionController {
                             minutos,
                             estado: true,
                         }); //add counter
-                        console.log(data)
-
                         res.json({
                             message: 'Votacion creada',
                             response: {
@@ -78,13 +74,13 @@ class VotacionController {
                     }
                 } catch (error) {
                     let message
-                    if (error && error?.innerError && error.innerError?.message) {
-                        message = innerError?.message
+                    if (error && error?.innerError) {
+                        message = error?.innerError;
                     } else {
                         message = error.message
                     }
                     res.status(500).send({
-                        message
+                        ...message
                     });
                 }
             } else {
