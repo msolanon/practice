@@ -10,7 +10,7 @@ class AuthenticationController {
                 identity = await User.findOne({ "cedula": cedula, "password": password })
             }
             if (identity && identity['_id']) {
-                let payload = { "id": identity['_id'] };
+                let payload = { "id": identity['_id'], "colegio": identity['colegio'] };
                 jwt.sign(payload, 'secret', (err, token) => {
                     res.json({
                         token

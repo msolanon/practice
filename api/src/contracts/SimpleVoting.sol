@@ -39,20 +39,17 @@ contract SimpleVoting {
     // function to vote
     function cast(uint ballotIndex_, uint optionIndex_) external {
         require(!hasVoted[ballotIndex_][msg.sender], "El usuario ya voto"); // new
-        Ballot memory votacion = _ballots[ballotIndex_];
-        require(
-            block.timestamp >= votacion.startTime,
-            "La votacion no ha iniciado"
-        );
-        require(
-            block.timestamp < votacion.startTime + votacion.duration,
-            "Esta votacion ya termino"
-        );
+        // Ballot memory votacion = _ballots[ballotIndex_];
 
-        require(
-            !hasVoted[ballotIndex_][msg.sender],
-            "El usuario ya emitio su voto"
-        );
+        // require(
+        //     block.timestamp > votacion.startTime,
+        //     "La votacion no ha iniciado"
+        // );
+
+        // require(
+        //     block.timestamp < votacion.startTime + votacion.duration,
+        //     "Esta votacion ya termino"
+        // );
         _tally[ballotIndex_][optionIndex_]++;
         hasVoted[ballotIndex_][msg.sender] = true;
     }
