@@ -20,10 +20,6 @@ const VotacionSchema = new mongoose.Schema(
             type: Date,
             required: true
         },
-        minutos: {
-            type: Number,
-            required: true
-        },
         counter: {
             type: Number,
             required: true

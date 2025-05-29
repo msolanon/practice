@@ -4,6 +4,8 @@ const tokenController = require("./token.controller");
 const config = require("../config");
 const { default: mongoose } = require("mongoose");
 const { parseDateTime } = require("../utils/parseDateTime");
+const { extractErrorCode } = require("../utils/parseSolidityError");
+
 const web3 = new Web3(config.NODE_URL);
 votingContract = require('../build/contracts/SimpleVoting.json')
 const simpleVoting = new web3.eth.Contract(votingContract.abi, votingContract.networks['5777'].address);
@@ -28,27 +30,27 @@ class VotacionController {
                     let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
                     let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
                     let fechaHoraFin_ = new Date(fechaHoraFin);
-
                     let fechaHoraInicio_ = new Date(fechaHoraInicio);
-                    let minutos = Math.round((fechaHoraFin_ - fechaHoraInicio_) / 60000);
                     if (req.body) {
-
                         console.log(Math.floor(fechaHoraInicio_.getTime() / 1000));
-                        const solidityDate = Math.floor(fechaHoraInicio_.getTime() / 1000)
-                        console.log(solidityDate);
+                        const solidityStartDate = Math.floor(fechaHoraInicio_.getTime() / 1000)
+                        console.log(Math.floor(fechaHoraFin_.getTime() / 1000), 'hora fin');
+                        const solidityEndDate = Math.floor(fechaHoraFin_.getTime() / 1000)
+                        let counter = await simpleVoting.methods.getCounter().call({
+                            from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+                        });
+                        counter = Number(counter);
+                        console.log(counter);
                         const transaction = await simpleVoting
                             .methods.createBallot(
-                                cargo, candidatos, solidityDate, minutos
+                                cargo, candidatos, solidityStartDate, solidityEndDate
                             )
                             .send({
                                 from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',//dinamico despúes
                                 gas: 3000000
                             })
-                        let counter = await simpleVoting
-                            .methods.counter
-                            .call()
-                            .call()
-                        counter = Number(counter)
+
+
                         data = await votacion.create({
                             cargo,
                             tipoVotacion,
@@ -57,7 +59,6 @@ class VotacionController {
                             counter,
                             candidatos: candidatosId,
                             colegio: colegioId,
-                            minutos,
                             estado: true,
                         }); //add counter
                         res.json({
@@ -65,8 +66,7 @@ class VotacionController {
                             response: {
                                 data,
                                 hash: transaction.transactionHash,
-                                numberoBloque: Number(transaction.blockNumber),
-
+                                numberoBloque: Number(transaction.blockNumber)
                             }
                         })
                     }
@@ -137,6 +137,70 @@ class VotacionController {
         }
     }
 
+    async getResults(req, res, next) {
+        let { counter } = req.params;
+        try {
+            const result = await simpleVoting.methods.results(counter).call({
+                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+            });
+            console.log(result, counter, 'Prueba')
+
+            const votacionData = await votacion.findOne({ counter: Number(counter) })
+                .populate('candidatos')
+                .exec();
+
+            let votosCandidato = []
+            let candidatos = [];
+            let votos = [];
+            for (let i = 0; i < result.length; i++) {
+                const usuario = votacionData['candidatos'][i]['nombreCompleto']
+                candidatos.push(usuario);
+                const resultado = Number(result[i]);
+                votos.push(resultado);
+            }
+            votosCandidato.push({ 'candidato': candidatos, 'votos': votos })
+
+            res.json({
+                message: 'Resultados Obtenidos',
+                data: votosCandidato
+
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).send({
+                message:
+                    error?.message || "Error"
+            });
+        }
+    }
+
+    async getWinner(req, res, next) {
+        let { counter } = req.params;
+        try {
+            const ballot = await simpleVoting.methods.getWinner(counter).call({
+                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+            });
+            const numberDate = (Number(ballot.startTime) * 1000)
+            res.json({
+                message: 'Ganador Obtenido',
+                response: {
+                    data: {
+                        candidatos: ballot.options,
+                        cargo: ballot.question,
+                        minutos: Number(ballot.duration),
+                        startTime: new Date(numberDate)
+                    }
+                }
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).send({
+                message:
+                    error?.message || "Error"
+            });
+        }
+    }
+
     async votar(req, res, next) {
         try {
             const user = await tokenController.getUserIdByToken(req, res, next);
@@ -153,7 +217,8 @@ class VotacionController {
                             .send({
                                 from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',//dinamico despúes
                                 gas: 3000000
-                            })
+                            });
+
                         res.json({
                             message: 'Votacion creada',
                             response: {
@@ -163,15 +228,9 @@ class VotacionController {
                         })
                     }
                 } catch (error) {
-                    console.log(error);
-                    let message
-                    if (error && error?.innerError) {
-                        message = error?.innerError;
-                    } else {
-                        message = error.message
-                    }
+                    const solidityError = extractErrorCode(String(error.innerError));
                     res.status(500).send({
-                        ...message
+                        message: solidityError
                     });
                 }
             } else {

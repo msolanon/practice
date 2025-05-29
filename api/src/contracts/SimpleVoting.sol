@@ -11,8 +11,8 @@ contract SimpleVoting {
     struct Ballot {
         string question;
         string[] options;
-        uint startTime;
-        uint duration;
+        uint256 startTime;
+        uint256 endTime;
     }
 
     mapping(uint => Ballot) private _ballots;
@@ -23,10 +23,10 @@ contract SimpleVoting {
         string memory question_,
         string[] memory options_,
         uint startTime_,
-        uint duration_
+        uint endTime_
     ) external {
         require(options_.length >= 2, "Seleccione al menos 2 candidatos");
-        _ballots[counter] = Ballot(question_, options_, startTime_, duration_);
+        _ballots[counter] = Ballot(question_, options_, startTime_, endTime_);
         counter++;
     }
 
@@ -36,20 +36,29 @@ contract SimpleVoting {
         ballot = _ballots[_index];
     }
 
+    function getCounter() external view returns (uint) {
+        return counter;
+    }
+
     // function to vote
     function cast(uint ballotIndex_, uint optionIndex_) external {
-        require(!hasVoted[ballotIndex_][msg.sender], "El usuario ya voto"); // new
-        // Ballot memory votacion = _ballots[ballotIndex_];
+        require(
+            !hasVoted[ballotIndex_][msg.sender],
+            "___El usuario ya voto___"
+        ); // new
+        Ballot memory votacion = _ballots[ballotIndex_];
 
-        // require(
-        //     block.timestamp > votacion.startTime,
-        //     "La votacion no ha iniciado"
-        // );
+        uint currentDate = block.timestamp;
 
-        // require(
-        //     block.timestamp < votacion.startTime + votacion.duration,
-        //     "Esta votacion ya termino"
-        // );
+        require(
+            currentDate >= votacion.startTime,
+            "___La votacion no ha iniciado___"
+        );
+
+        require(
+            currentDate <= votacion.endTime,
+            "___Esta votacion ya termino___"
+        );
         _tally[ballotIndex_][optionIndex_]++;
         hasVoted[ballotIndex_][msg.sender] = true;
     }
