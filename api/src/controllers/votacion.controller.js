@@ -152,13 +152,18 @@ class VotacionController {
             let votosCandidato = []
             let candidatos = [];
             let votos = [];
+            let totalVotos = 0;
+            let tableData = [];
             for (let i = 0; i < result.length; i++) {
-                const usuario = votacionData['candidatos'][i]['nombreCompleto']
-                candidatos.push(usuario);
+
                 const resultado = Number(result[i]);
+                const usuario = `${votacionData['candidatos'][i]['nombreCompleto']}: ${resultado}`;
+                totalVotos += resultado;
+                candidatos.push(usuario);
                 votos.push(resultado);
+                tableData.push({ candidato: votacionData['candidatos'][i]['nombreCompleto'], votos: resultado })
             }
-            votosCandidato.push({ 'candidato': candidatos, 'votos': votos })
+            votosCandidato.push({ 'candidato': candidatos, 'votos': votos, totalVotos, tableData })
 
             res.json({
                 message: 'Resultados Obtenidos',
@@ -177,18 +182,22 @@ class VotacionController {
     async getWinner(req, res, next) {
         let { counter } = req.params;
         try {
-            const ballot = await simpleVoting.methods.getWinner(counter).call({
+            const winner = await simpleVoting.methods.winners(counter).call({
                 from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
             });
-            const numberDate = (Number(ballot.startTime) * 1000)
+            const votacionData = await votacion.findOne({ counter: Number(counter) })
+                .populate('candidatos')
+                .exec();
+
+            const ganadores = votacionData.candidatos
+                .map((candidato, index) => { if (winner[index]) return candidato.nombreCompleto })
+                .filter(result => { return result != undefined })
+
             res.json({
                 message: 'Ganador Obtenido',
                 response: {
                     data: {
-                        candidatos: ballot.options,
-                        cargo: ballot.question,
-                        minutos: Number(ballot.duration),
-                        startTime: new Date(numberDate)
+                        ganador: ganadores,
                     }
                 }
             });
