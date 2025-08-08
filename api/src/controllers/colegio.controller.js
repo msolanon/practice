@@ -24,7 +24,7 @@ class ColegioController {
         } catch (err) {
             res.status(500).send({
                 message:
-                    err.message || "Error authenticating user"
+                    err.message || "Error autenticando usuario"
             });
         }
     };
@@ -33,7 +33,6 @@ class ColegioController {
         const user = await tokenController.getUserIdByToken(req, res, next);
         let data;
         try {
-            // traer todos los colegios is usuario es admin
             if (user && user.isAdmin) {
                 data = await Colegio.find();
             } else if (user) {

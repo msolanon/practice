@@ -1,15 +1,16 @@
 const { Web3 } = require("web3");
 const votacion = require("../models/votacion");
 const tokenController = require("./token.controller");
+const cargoController = require('./cargo.controller');
 const config = require("../config");
 const { default: mongoose } = require("mongoose");
 const { parseDateTime } = require("../utils/parseDateTime");
 const { extractErrorCode } = require("../utils/parseSolidityError");
+const ganadorController = require("./ganador.controller");
 
 const web3 = new Web3(config.NODE_URL);
 votingContract = require('../build/contracts/SimpleVoting.json')
 const simpleVoting = new web3.eth.Contract(votingContract.abi, votingContract.networks['5777'].address);
-
 
 class VotacionController {
     async agregarVotacion(req, res, next) {
@@ -27,58 +28,62 @@ class VotacionController {
                 } = req.body
                 let data = {};
                 try {
-                    let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
-                    let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
-                    let fechaHoraFin_ = new Date(fechaHoraFin);
-                    let fechaHoraInicio_ = new Date(fechaHoraInicio);
-                    if (req.body) {
-                        console.log(Math.floor(fechaHoraInicio_.getTime() / 1000));
-                        const solidityStartDate = Math.floor(fechaHoraInicio_.getTime() / 1000)
-                        console.log(Math.floor(fechaHoraFin_.getTime() / 1000), 'hora fin');
-                        const solidityEndDate = Math.floor(fechaHoraFin_.getTime() / 1000)
-                        let counter = await simpleVoting.methods.getCounter().call({
-                            from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
-                        });
-                        counter = Number(counter);
-                        console.log(counter);
-                        const transaction = await simpleVoting
-                            .methods.createBallot(
-                                cargo, candidatos, solidityStartDate, solidityEndDate
-                            )
-                            .send({
-                                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',//dinamico despúes
-                                gas: 3000000
+                    const votacionData = await votacion.findOne({ colegio, cargo, "fechaHoraFin": { $gte: new Date } })
+                        .exec();
+                    if (!votacionData || votacionData.length === 0) {
+                        let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
+                        candidatos.push('0');
+                        candidatosId.push(new mongoose.Types.ObjectId("000000000000000000000000"));
+                        let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
+                        let fechaHoraFin_ = new Date(fechaHoraFin);
+                        let fechaHoraInicio_ = new Date(fechaHoraInicio);
+                        if (req.body) {
+                            const solidityStartDate = Math.floor(fechaHoraInicio_.getTime() / 1000)
+                            const solidityEndDate = Math.floor(fechaHoraFin_.getTime() / 1000)
+                            let counter = await simpleVoting.methods.getCounter().call({
+                                from: user.cuenta
+                            });
+                            counter = Number(counter);
+                            const transaction = await simpleVoting
+                                .methods.createBallot(
+                                    cargo, candidatos, solidityStartDate, solidityEndDate
+                                )
+                                .send({
+                                    from: user.cuenta, //dinamico despúes
+                                    gas: 3000000
+                                })
+
+                            data = await votacion.create({
+                                cargo,
+                                tipoVotacion,
+                                fechaHoraInicio: fechaHoraInicio_,
+                                fechaHoraFin: fechaHoraFin_,
+                                counter,
+                                candidatos: candidatosId,
+                                colegio: colegioId,
+                                estado: true,
+                            }); //add counter
+                            res.json({
+                                message: 'Votacion creada',
+                                response: {
+                                    data,
+                                    hash: transaction.transactionHash,
+                                    numberoBloque: Number(transaction.blockNumber)
+                                }
                             })
-
-
-                        data = await votacion.create({
-                            cargo,
-                            tipoVotacion,
-                            fechaHoraInicio: fechaHoraInicio_,
-                            fechaHoraFin: fechaHoraFin_,
-                            counter,
-                            candidatos: candidatosId,
-                            colegio: colegioId,
-                            estado: true,
-                        }); //add counter
-                        res.json({
-                            message: 'Votacion creada',
-                            response: {
-                                data,
-                                hash: transaction.transactionHash,
-                                numberoBloque: Number(transaction.blockNumber)
-                            }
-                        })
+                        }
+                    } else {
+                        throw new TypeError('Este colegio ya tiene una votación activa para el cargo seleccionado');
                     }
                 } catch (error) {
-                    let message
+                    let message;
                     if (error && error?.innerError) {
                         message = error?.innerError;
                     } else {
-                        message = error.message
+                        message = error.message;
                     }
                     res.status(500).send({
-                        ...message
+                        message
                     });
                 }
             } else {
@@ -90,7 +95,7 @@ class VotacionController {
         } catch (err) {
             res.status(500).send({
                 message:
-                    err.message || "Error authenticating user"
+                    err.message || "Error autenticando usuario"
             });
         }
     };
@@ -109,12 +114,12 @@ class VotacionController {
         }
 
     }
-
     async getBallotByIndex(req, res, next) {
         let { counter } = req.params;
+        const user = await tokenController.getUserIdByToken(req, res, next);
         try {
             const ballot = await simpleVoting.methods.getBallotByIndex(counter).call({
-                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+                from: user.cuenta//aún puede ser dinámico
             });
             const numberDate = (Number(ballot.startTime) * 1000)
             res.json({
@@ -129,7 +134,33 @@ class VotacionController {
                 }
             });
         } catch (error) {
-            console.log(error);
+            res.status(500).send({
+                message:
+                    error?.message || "Error"
+            });
+        }
+    }
+
+    async getBallotByIndex(req, res, next) {
+        let { counter } = req.params;
+        const user = await tokenController.getUserIdByToken(req, res, next);
+        try {
+            const ballot = await simpleVoting.methods.getBallotByIndex(counter).call({
+                from: user.cuenta//aún puede ser dinámico
+            });
+            const numberDate = (Number(ballot.startTime) * 1000)
+            res.json({
+                message: 'Votacion Obtenida',
+                response: {
+                    data: {
+                        candidatos: ballot.options,
+                        cargo: ballot.question,
+                        minutos: Number(ballot.duration),
+                        startTime: new Date(numberDate)
+                    }
+                }
+            });
+        } catch (error) {
             res.status(500).send({
                 message:
                     error?.message || "Error"
@@ -140,10 +171,10 @@ class VotacionController {
     async getResults(req, res, next) {
         let { counter } = req.params;
         try {
+            const user = await tokenController.getUserIdByToken(req, res, next);
             const result = await simpleVoting.methods.results(counter).call({
-                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+                from: user.cuenta//aún puede ser dinámico
             });
-            console.log(result, counter, 'Prueba')
 
             const votacionData = await votacion.findOne({ counter: Number(counter) })
                 .populate('candidatos')
@@ -171,7 +202,6 @@ class VotacionController {
 
             });
         } catch (error) {
-            console.log(error);
             res.status(500).send({
                 message:
                     error?.message || "Error"
@@ -182,15 +212,19 @@ class VotacionController {
     async getWinner(req, res, next) {
         let { counter } = req.params;
         try {
+            const user = await tokenController.getUserIdByToken(req, res, next);
             const winner = await simpleVoting.methods.winners(counter).call({
-                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415' // aún puede ser dinámico
+                from: user.cuenta//daún puede ser dinámico
             });
+
+            // objeto votacion
             const votacionData = await votacion.findOne({ counter: Number(counter) })
                 .populate('candidatos')
                 .exec();
 
+            // arreglo con candidatos
             const ganadores = votacionData.candidatos
-                .map((candidato, index) => { if (winner[index]) return candidato.nombreCompleto })
+                .map((candidato, index) => { if (winner[index]) return candidato })
                 .filter(result => { return result != undefined })
 
             res.json({
@@ -202,7 +236,6 @@ class VotacionController {
                 }
             });
         } catch (error) {
-            console.log(error);
             res.status(500).send({
                 message:
                     error?.message || "Error"
@@ -212,46 +245,40 @@ class VotacionController {
 
     async votar(req, res, next) {
         try {
-            const user = await tokenController.getUserIdByToken(req, res, next);
-            if (user.isAdmin) {
-                const {
-                    id,
-                    counter,
-                } = req.body
-                let data = {};
-                try {
-                    if (req.body) {
-                        const transaction = await simpleVoting
-                            .methods.cast(counter, id)
-                            .send({
-                                from: '0x83e53f3e3Eb7bD2ad2C6c311b350E2AFF8410415',//dinamico despúes
-                                gas: 3000000
-                            });
 
-                        res.json({
-                            message: 'Votacion creada',
-                            response: {
-                                hash: transaction.transactionHash,
-                                numberoBloque: Number(transaction.blockNumber),
-                            }
-                        })
-                    }
-                } catch (error) {
-                    const solidityError = extractErrorCode(String(error.innerError));
-                    res.status(500).send({
-                        message: solidityError
-                    });
+            const {
+                id,
+                counter,
+            } = req.body
+            let data = {};
+            try {
+                const user = await tokenController.getUserIdByToken(req, res, next);
+                if (req.body) {
+                    const transaction = await simpleVoting
+                        .methods.cast(counter, id)
+                        .send({
+                            from: user.cuenta,//dinamico despúes
+                            gas: 3000000
+                        });
+
+                    res.json({
+                        message: 'Voto almacenado',
+                        response: {
+                            hash: transaction.transactionHash,
+                            numberoBloque: Number(transaction.blockNumber),
+                        }
+                    })
                 }
-            } else {
+            } catch (error) {
+                const solidityError = extractErrorCode(String(error.innerError));
                 res.status(500).send({
-                    message:
-                        "El usuario no posee permisos para crear una votacion"
+                    message: solidityError
                 });
             }
         } catch (err) {
             res.status(500).send({
                 message:
-                    err.message || "Error authenticating user"
+                    err.message || "Error autenticando usuario"
             });
         }
     };
@@ -260,10 +287,16 @@ class VotacionController {
     async getVotacionesByColegios(req, res, next) {
         let data;
         let { colegios } = req.params;
+        let { estado } = req.query;
         colegios = JSON.parse(colegios);
         colegios = colegios.map(element => (new mongoose.Types.ObjectId(element)));
         try {
-            data = await votacion.find({ colegio: { $in: colegios }, estado: true })
+            // console.log('estado', estado);
+            let jsonQuery = { colegio: { $in: colegios } }
+            if (estado) {
+                jsonQuery['estado'] = estado;
+            }
+            data = await votacion.find(jsonQuery)
                 .populate('colegio')
                 .populate('candidatos')
                 .exec();
@@ -278,9 +311,53 @@ class VotacionController {
                     err.message || "Error"
             });
         }
-
     }
 
+    async updateVotacionEstado(req, res, next) {
+        try {
+            const user = await tokenController.getUserIdByToken(req, res, next);
+            if (user.isAdmin) {
+                let updateVotacion = {};
+                const { votacionId, colegioId, idGanador, tipoVotacion, cargo } = req.body
+                console.log('soy el ganador', idGanador);
+                try {
+                    if (votacionId) {
+                        // pone la votacion inactiva
+                        updateVotacion = await votacion.updateOne(
+                            { _id: new mongoose.Types.ObjectId(votacionId) },
+                            { $set: { estado: false } }
+                        );
+                        // get Cargo
+                        let dataCargo = await cargoController.getCargo(tipoVotacion, cargo)
+                        //Update o Insert del Ganador según puesto y el colegio
+                        let updateGanador = await ganadorController.upsertGanador(colegioId, dataCargo['_id'], idGanador);
+                         res.json({
+                            message: 'Puesto asignado al ganador y votacion cerrada correctamente',
+                            response: {votacion: votacionId, ganador: updateGanador}
+                        })
+                    }
+                } catch (error) {
+                    res.status(500).send({
+                        message:
+                            error.message
+                    });
+                }
+
+            } else {
+                res.status(500).send({
+                    message:
+                        "El usuario no posee permisos para crear una votacion"
+                });
+            }
+        } catch (err) {
+            res.status(500).send({
+                message:
+                    err.message || "Error autenticando usuario"
+            });
+        }
+    }
 }
+
+
 
 module.exports = new VotacionController();

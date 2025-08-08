@@ -9,8 +9,8 @@ class AuthenticationController {
             if (cedula && password) {
                 identity = await User.findOne({ "cedula": cedula, "password": password })
             }
-            if (identity && identity['_id']) {
-                let payload = { "id": identity['_id'], "colegio": identity['colegio'] };
+            if (identity && identity['_id'] && identity['estado']) {
+                let payload = { "id": identity['_id'], "colegio": identity['colegio'], 'nombre': identity['nombreCompleto'], 'role': identity['isAdmin'] };
                 jwt.sign(payload, 'secret', (err, token) => {
                     res.json({
                         token
@@ -22,7 +22,7 @@ class AuthenticationController {
         } catch (err) {
             res.status(500).send({
                 message:
-                    err.message || "Error authenticating user"
+                    err.message || "Error autenticando usuario"
             });
         }
     };

@@ -9,11 +9,13 @@ const UserSchema = new mongoose.Schema(
         },
         cedula: {
             type: String,
-            required: true
+            required: true,
+            index: { unique: true }
         },
         carne: {
             type: Array,
-            required: true
+            required: true,
+            index: { unique: true }
         },
         carrera: {
             type: Array
@@ -27,12 +29,10 @@ const UserSchema = new mongoose.Schema(
         },
         correo: {
             type: String,
-            required: true
+            required: true,
+            index: { unique: true }
         },
-        colegio: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Colegio' }], 
-        cargo: {
-            type: Array
-        },
+        colegio: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Colegio' }],
         empleado: {
             type: Boolean,
             required: true
@@ -43,7 +43,7 @@ const UserSchema = new mongoose.Schema(
         },
         cuenta: {
             type: String,
-            required: true
+            index: { unique: true }
         },
         isAdmin: {
             type: Boolean,

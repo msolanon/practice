@@ -7,14 +7,10 @@ const CargoSchema = new mongoose.Schema(
             type: String,
             required: true
         },
-        colegio: {
-            type: mongoose.Schema.ObjectId,
+        tipo: {
+            type: String,
             required: true
         },
-        anoVencimiento: {
-            type: Number
-        }
-
     },
 
 );
