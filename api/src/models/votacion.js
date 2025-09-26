@@ -28,6 +28,9 @@ const VotacionSchema = new mongoose.Schema(
         estado: {
             type: Boolean
         },
+        totalElectores: {
+            type: Number,
+        },
     },
 
 );

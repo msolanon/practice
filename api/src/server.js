@@ -28,6 +28,7 @@ class App {
         this.express.use(require("./routes/user"));
         this.express.use(require("./routes/colegio"));
         this.express.use(require("./routes/votacion"));
+        this.express.use(require("./routes/txLog"));
 
 
     }

@@ -7,9 +7,10 @@ const { default: mongoose } = require("mongoose");
 const { parseDateTime } = require("../utils/parseDateTime");
 const { extractErrorCode } = require("../utils/parseSolidityError");
 const ganadorController = require("./ganador.controller");
-
-const web3 = new Web3(config.NODE_URL);
+const userController = require("./user.controller");
+const txLogController = require('./txLog.controller');
 votingContract = require('../build/contracts/SimpleVoting.json')
+const web3 = new Web3(config.NODE_URL);
 const simpleVoting = new web3.eth.Contract(votingContract.abi, votingContract.networks['5777'].address);
 
 class VotacionController {
@@ -28,18 +29,24 @@ class VotacionController {
                 } = req.body
                 let data = {};
                 try {
+                    // pregunta si ya existe una votacion activa
                     const votacionData = await votacion.findOne({ colegio, cargo, "fechaHoraFin": { $gte: new Date } })
                         .exec();
                     if (!votacionData || votacionData.length === 0) {
+                        // esta creando los id's para mongo ObjectId
                         let candidatosId = candidatos.map(element => (new mongoose.Types.ObjectId(element)));
+                        // votos en blanco
                         candidatos.push('0');
                         candidatosId.push(new mongoose.Types.ObjectId("000000000000000000000000"));
+
                         let colegioId = new mongoose.Types.ObjectId(colegio['_id'])
                         let fechaHoraFin_ = new Date(fechaHoraFin);
                         let fechaHoraInicio_ = new Date(fechaHoraInicio);
                         if (req.body) {
+                            // formato fechas solidity
                             const solidityStartDate = Math.floor(fechaHoraInicio_.getTime() / 1000)
                             const solidityEndDate = Math.floor(fechaHoraFin_.getTime() / 1000)
+                            // trae el identificador de solidity 
                             let counter = await simpleVoting.methods.getCounter().call({
                                 from: user.cuenta
                             });
@@ -51,24 +58,32 @@ class VotacionController {
                                 .send({
                                     from: user.cuenta, //dinamico despúes
                                     gas: 3000000
-                                })
+                                });
+                            
+                                
+                                // cantidad de usuarios activos en este momento;
+                                let userActivos = await userController.userByColegioEstado(colegio['_id']);
+                                data = await votacion.create({
+                                    cargo,
+                                    tipoVotacion,
+                                    fechaHoraInicio: fechaHoraInicio_,
+                                    fechaHoraFin: fechaHoraFin_,
+                                    counter,
+                                    candidatos: candidatosId,
+                                    colegio: colegioId,
+                                    estado: true,
+                                    totalElectores: userActivos 
 
-                            data = await votacion.create({
-                                cargo,
-                                tipoVotacion,
-                                fechaHoraInicio: fechaHoraInicio_,
-                                fechaHoraFin: fechaHoraFin_,
-                                counter,
-                                candidatos: candidatosId,
-                                colegio: colegioId,
-                                estado: true,
-                            }); //add counter
-                            res.json({
+                                }); //add counter
+
+                                const date = await web3.eth.getBlock(transaction.blockNumber)
+                                await txLogController.agregarTxLog(transaction.transactionHash, new Date(Number(date.timestamp) * 1000), transaction.blockNumber, data['_id'], 'Apertura Votación')
+                                res.json({
                                 message: 'Votacion creada',
                                 response: {
                                     data,
                                     hash: transaction.transactionHash,
-                                    numberoBloque: Number(transaction.blockNumber)
+                                    numBloque: Number(transaction.blockNumber)
                                 }
                             })
                         }
@@ -99,21 +114,7 @@ class VotacionController {
             });
         }
     };
-
-    async getVotaciones(req, res, next) {
-        const user = await tokenController.getUserIdByToken(req, res, next);
-
-        let data;
-        try {
-
-        } catch (error) {
-            res.status(500).send({
-                message:
-                    err.message || "Error"
-            });
-        }
-
-    }
+    
     async getBallotByIndex(req, res, next) {
         let { counter } = req.params;
         const user = await tokenController.getUserIdByToken(req, res, next);
@@ -249,6 +250,7 @@ class VotacionController {
             const {
                 id,
                 counter,
+                idVotacion
             } = req.body
             let data = {};
             try {
@@ -261,13 +263,16 @@ class VotacionController {
                             gas: 3000000
                         });
 
-                    res.json({
-                        message: 'Voto almacenado',
-                        response: {
-                            hash: transaction.transactionHash,
-                            numberoBloque: Number(transaction.blockNumber),
-                        }
-                    })
+                const date = await web3.eth.getBlock(transaction.blockNumber)      
+                console.log('Soy el ID', id);                          
+                await txLogController.agregarTxLog(transaction.transactionHash, new Date(Number(date.timestamp) * 1000), transaction.blockNumber, new mongoose.Types.ObjectId(idVotacion), 'Voto')
+                res.json({
+                    message: 'Voto almacenado',
+                    response: {
+                        hash: transaction.transactionHash,
+                        numeroBloque: Number(transaction.blockNumber),
+                    }
+                })
                 }
             } catch (error) {
                 const solidityError = extractErrorCode(String(error.innerError));
@@ -288,11 +293,15 @@ class VotacionController {
         let data;
         let { colegios } = req.params;
         let { estado } = req.query;
+
+        
         colegios = JSON.parse(colegios);
         colegios = colegios.map(element => (new mongoose.Types.ObjectId(element)));
         try {
-            // console.log('estado', estado);
-            let jsonQuery = { colegio: { $in: colegios } }
+            let jsonQuery = {}
+            if(colegios.length !== 0){
+                jsonQuery = { colegio: { $in: colegios } }
+            }
             if (estado) {
                 jsonQuery['estado'] = estado;
             }
@@ -300,7 +309,6 @@ class VotacionController {
                 .populate('colegio')
                 .populate('candidatos')
                 .exec();
-
             res.json({
                 message: 'respuesta satisfactoria',
                 response: data
@@ -319,7 +327,6 @@ class VotacionController {
             if (user.isAdmin) {
                 let updateVotacion = {};
                 const { votacionId, colegioId, idGanador, tipoVotacion, cargo } = req.body
-                console.log('soy el ganador', idGanador);
                 try {
                     if (votacionId) {
                         // pone la votacion inactiva
@@ -331,6 +338,9 @@ class VotacionController {
                         let dataCargo = await cargoController.getCargo(tipoVotacion, cargo)
                         //Update o Insert del Ganador según puesto y el colegio
                         let updateGanador = await ganadorController.upsertGanador(colegioId, dataCargo['_id'], idGanador);
+                        
+                        await txLogController.agregarTxLog('000000000000', new Date(), '0000000', votacionId, 'Cierre')
+
                          res.json({
                             message: 'Puesto asignado al ganador y votacion cerrada correctamente',
                             response: {votacion: votacionId, ganador: updateGanador}
