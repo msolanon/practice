@@ -99,4 +99,69 @@ contract SimpleVoting {
         }
         return winner;
     }
+
+    function winnersWithLimit(
+        uint ballotIndex_,
+        uint limit_
+    ) external view returns (bool[] memory) {
+        Ballot memory ballot = _ballots[ballotIndex_];
+        uint len = ballot.options.length;
+        require(limit_ > 0 && limit_ <= len, "Limite invalido");
+
+        uint[] memory votes = new uint[](len);
+        // 1. Obtener conteos de votos
+        for (uint i = 0; i < len; i++) {
+            votes[i] = _tally[ballotIndex_][i];
+        }
+
+        // 2. Copiar y ordenar los conteos para encontrar el umbral de votos
+        // Solidity no tiene funciones de ordenamiento nativas para arrays dinámicos en storage,
+        // así que usamos un algoritmo de ordenamiento simple (Bubble Sort) en memoria.
+        uint[] memory sortedVotes = new uint[](len);
+        for (uint i = 0; i < len; i++) {
+            sortedVotes[i] = votes[i];
+        }
+
+        for (uint i = 0; i < len; i++) {
+            for (uint j = i + 1; j < len; j++) {
+                if (sortedVotes[i] < sortedVotes[j]) {
+                    uint temp = sortedVotes[i];
+                    sortedVotes[i] = sortedVotes[j];
+                    sortedVotes[j] = temp;
+                }
+            }
+        }
+
+        // 3. Determinar el umbral de votos para la posición límite (limit_ - 1, ya que es 0-indexado)
+        uint thresholdVoteCount = sortedVotes[limit_ - 1];
+
+        // 4. Verificar si hay empate en el umbral
+        bool isTieAtThreshold = false;
+        // Si limit_ es menor que la longitud total, comprobamos el siguiente elemento
+        if (limit_ < len) {
+            if (thresholdVoteCount == sortedVotes[limit_]) {
+                isTieAtThreshold = true;
+            }
+        }
+
+        // 5. Asignar ganadores:
+        // Si hay empate en el umbral, solo ganan aquellos con estrictamente más votos que el umbral.
+        // Si no hay empate, ganan aquellos con votos mayores o iguales al umbral.
+        bool[] memory winner = new bool[](len);
+        for (uint i = 0; i < len; i++) {
+            if (isTieAtThreshold) {
+                if (votes[i] > thresholdVoteCount) {
+                    winner[i] = true;
+                }
+            } else {
+                // Caso sin empate: si los votos son >= al umbral, son ganadores.
+                // Esto también cubre el caso en que limit_ es igual a len.
+                if (votes[i] >= thresholdVoteCount) {
+                    winner[i] = true;
+                }
+            }
+        }
+
+        return winner;
+    }
 }
