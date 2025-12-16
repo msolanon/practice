@@ -1,32 +1,44 @@
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const { mailTemplate } = require("./mailTemplate");
+const { google } = require('googleapis');
+const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN } = require('../config');
 
 
 class UtilsController {
-    async enviarCorreo() {
+    async enviarCorreo(cedula, carne, correo, contrasena, nombre) {
         try {
-            const accessToken = await oAuth2Client.getAccessToken();
+            const oAuth2Client = new google.auth.OAuth2("900223720690-l0o1cclrig453d4hn9c2snjdimhd23u6.apps.googleusercontent.com", "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", "https://developers.google.com/oauthplayground");
+            oAuth2Client.setCredentials({ refresh_token: "1//04gY6caL7NOUzCgYIARAAGAQSNwF-L9IrUIadloaJrjKK-NpntR_nLRGvnZEzJ_xn-V6bNXU-X9VERO1_wYF6XHjSqdn0afIBaOw" });
 
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
                     type: 'OAuth2',
                     user: 'cfiavotaciones@gmail.com',
-                    clientId: CLIENT_ID,
-                    clientSecret: CLIENT_SECRET,
-                    refreshToken: REFRESH_TOKEN,
-                    accessToken: accessToken.token
+                    clientId: "900223720690-l0o1cclrig453d4hn9c2snjdimhd23u6.apps.googleusercontent.com",
+                    clientSecret: "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",
+                    refreshToken: "1//04gY6caL7NOUzCgYIARAAGAQSNwF-L9IrUIadloaJrjKK-NpntR_nLRGvnZEzJ_xn-V6bNXU-X9VERO1_wYF6XHjSqdn0afIBaOw",
                 }
             });
-
-            const info = {
-                from: '"Votaciones CFIA" <cfiavotaciones@gmail.com>',
-                to: "valeriabmonge24@gmail.com",
-                subject: "Hello ",
-                text: "Hello world?", // plain‑text body
-                html: "<b>Hello world?</b>", // HTML body
+            const variables = {
+                cedula,
+                carne,
+                contrasena,
+                nombre,
+                uri: "https://www.sicop.go.cr/",//CAMBIAR
             }
-
-            const result = await transporter.sendMail(info);
+            let htmlBody = mailTemplate;
+            for (const [k, v] of Object.entries(variables)) {
+                const re = new RegExp(`{{\\s*${k}\\s*}}`, 'g');
+                htmlBody = htmlBody.replace(re, v || '');
+            }
+            await transporter.sendMail({
+                from: '"Votaciones CFIA" <cfiavotaciones@gmail.com>',
+                to: correo,
+                subject: 'Credenciales - Votaciones Electrónicas del CFIA',
+                html: htmlBody
+            });
 
         } catch (err) {
             console.error(` Error al enviar correo:`, err.message);
@@ -35,17 +47,6 @@ class UtilsController {
 
     async addPassword() {
         const randomstring = Math.random().toString(36).substr(2, 8);
-        // const usuarioPrueba = {
-        //     nombreCompleto: 'Prueba',
-        //     cedula: '1234567',
-        //     carne: '1234',
-        //     estado: true,
-        //     correo: 'msolanon1994@gmail.com',
-        //     empleado: true,
-        //     contrasena: randomstring,
-        //     cuenta:'0xdCDA1d86EEc918D653F3A2F30E037E1c264f46F9',
-        //     isAdmin: true
-        // };
         return randomstring;
     }
 }

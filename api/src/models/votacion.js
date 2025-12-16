@@ -31,6 +31,9 @@ const VotacionSchema = new mongoose.Schema(
         totalElectores: {
             type: Number,
         },
+        cantidad: {
+            type: Number,
+        }
     },
 
 );

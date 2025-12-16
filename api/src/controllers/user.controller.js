@@ -6,22 +6,19 @@ const tokenController = require("./token.controller");
 const config = require("../config");
 const web3 = new Web3(config.NODE_URL);
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 const cargoController = require("./cargo.controller");
 const utilsController = require('./utils.controller');
 const ganadorController = require("./ganador.controller");
+const { privateKey } = require("../privateKey");
+
+const CryptoUtils = require("../utils/CryptoUtils");
 
 
-const CLIENT_ID = '';
-const CLIENT_SECRET = '';
-const REDIRECT_URI = 'https://developers.google.com/oauthplayground';
-const REFRESH_TOKEN = '';
+
 const errorCodes = {
     11000: 'Usuarios duplicados'
 }
 // Configurar cliente OAuth2
-const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
-oAuth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
 
 class UserController {
     async userByColegio(req, res) {
@@ -54,9 +51,10 @@ class UserController {
 
 
             if (data.length > 0) {
+                const encryptedData = CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data));
                 res.json({
                     message: 'respuesta satisfactoria',
-                    response: data
+                    response: encryptedData
                 })
             } else {
                 throw Error('No existen usuarios asociados a ese colegio');
@@ -69,17 +67,31 @@ class UserController {
         }
     };
 
-    async userByColegioEstado(idColegio) {
-        let counter;
-        counter = await User.countDocuments({
+    async userByColegioEstado(colegioId) {
+        let count;
+        const data = await User.find({
             $or: [
-                { "colegio": new mongoose.Types.ObjectId(idColegio), "estado": true },
+                { "colegio": new mongoose.Types.ObjectId(colegioId) },
                 { "empleado": true }
-            ]
+            ],
+            $and: [{ "estado": true }]
         });
-        return counter
+        if (data.length > 0) {
+            count = data.length;
+        }
+        return count;
     }
 
+    renderTemplate(tpl, variables = {}) {
+        let html = tpl;
+        for (const [k, v] of Object.entries(variables)) {
+            const re = new RegExp('{{\\s*${k}\\s*}}', 'g');
+            html = html.replace(re, v || '');
+        }
+        return html;
+    }
+
+    //dropdown para agregar votacion - Trae los q no han ganado
     async userByGanadores(req, res) {
         try {
             const { idColegio, puestos, tipoVotacion, modalidad } = req.params;
@@ -87,13 +99,16 @@ class UserController {
             if (idColegio && puestos && tipoVotacion, modalidad) {
 
                 let query = {};
-                if (modalidad === 'Junta Directiva del Colegio') {
+                if (tipoVotacion === 'Junta Directiva del Colegio' || tipoVotacion === 'Asamblea de Representantes') {
                     let dataCargo = await cargoController.getCargo(tipoVotacion, [puestos])//Nombre del puesto por tipo de votación 
                     let ganadores = await ganadorController.getGanador(idColegio, dataCargo['_id']);//trae ganador del colegio con este puesto
                     query = {
                         "colegio": new mongoose.Types.ObjectId(idColegio),
-                        "_id": { $nin: [new mongoose.Types.ObjectId(ganadores['userId'])] },
                         "estado": true
+                    };
+                    if (ganadores && ganadores.length > 0) {
+                        const ganadoresId = ganadores.map(ganador => ganador['userId']);
+                        query["_id"] = { $nin: ganadoresId }
                     };
                     data = await User.find(query,
                         { cedula: 1, isAdmin: 1, nombreCompleto: 1, carne: 1, carrera: 1, correo: 1, colegio: 1, estado: 1 }
@@ -118,13 +133,9 @@ class UserController {
                 }
                 else if (tipoVotacion === 'Junta Directiva General' && modalidad === "Extraordinaria") {
                     let dataCargo = await cargoController.getTipoVotacion("Junta Directiva del Colegio");//Filtro por Tipo de Votación Junta Directiva del Colegio  
-                    console.log(dataCargo)
                     const cargoId = dataCargo.map(member => new mongoose.Types.ObjectId((member['_id'])));
-                    console.log(cargoId, "CargoId")
-                    console.log('soy el colegio', idColegio)
                     data = await ganadorController.getGanadoresByColegioCargo(idColegio, cargoId);
 
-                    console.log(data, 'im data');
                 }
                 else if (tipoVotacion === 'Junta Directiva General' && modalidad === "Ordinaria") {
                     const añoActual = new Date().getFullYear();
@@ -134,13 +145,9 @@ class UserController {
                         : puestosOrdinaria = ['Vicepresidente', 'Tesorero', 'Vocal II'];
 
                     let dataCargo = await cargoController.getCargos("Junta Directiva del Colegio", puestosOrdinaria)//Filtro por Tipo de Votación Junta Directiva del Colegio  
-                    console.log(dataCargo)
                     const cargoId = dataCargo.map(member => new mongoose.Types.ObjectId((member['_id'])));
-                    console.log(cargoId, "CargoId")
-                    console.log('soy el colegio', idColegio)
 
                     data = await ganadorController.getGanadoresByColegioCargo(idColegio, cargoId);
-                    console.log(data, 'im data ORDINARIA');
                 }
             }
             if (data.length > 0) {
@@ -163,39 +170,50 @@ class UserController {
         try {
             let data = [];
             let userLength = 0;
-            // await UtilsController.enviarCorreo();
+            const arregloErrores = []
             let cuentas = await web3.eth.getAccounts();
             let usuarios = await User.find({ nombreCompleto: { $ne: "Voto en Blanco" } });
             if (usuarios) userLength = usuarios.length;
-
-            try {
-                if (req.body) {
-                    for (let i = 0; i < req.body.length; i++, userLength++) {
-                        let userPassword = await utilsController.addPassword();
-                        console.log("passs", userPassword)
-                        let userAccount = cuentas[userLength];
-                        req.body[i] = { ...req.body[i], contrasena: userPassword, cuenta: userAccount }
-                        console.log(req.body[i]);
-                        let newUser = await User.create(req.body[i]);
+            // try {
+            if (req.body) {
+                const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey.privateKey, req.body.data));
+                for (let i = 0; i < decryptData.data.length; i++) {
+                    let userPassword = await utilsController.addPassword();
+                    let userAccount = cuentas[userLength];
+                    decryptData.data[i] = { ...decryptData.data[i], contrasena: userPassword, cuenta: userAccount }
+                    let newUser = await User.create(decryptData.data[i]).catch(err => {
+                        if (err && err?.errorResponse && err?.errorResponse?.errmsg) {
+                            arregloErrores.push(err.errorResponse.errmsg);
+                        }
+                    });
+                    console.log('Errores', arregloErrores);
+                    if (newUser && newUser?.cedula) {
                         data.push(newUser);
                     }
+                    console.log('userPassword', userPassword, 'cuenta: ', userAccount);
+                    if (newUser && newUser.correo) {
+                        await utilsController.enviarCorreo(newUser.cedula, newUser.carne, newUser.correo, userPassword, newUser.nombreCompleto);
+                    }
+                    userLength = userLength + 1;
                 }
-                res.json({
-                    message: 'Usuario creado',
-                    response: data
-                })
-            } catch (error) {
-                let message = '';
-                JSON.stringify(error.code);
-                if (error && error?.code) {
-                    message = errorCodes[error.code];
-                } else {
-                    message = error.message;
-                }
-                res.status(500).send({
-                    message
-                });
             }
+            res.json({
+                message: 'Usuario creado',
+                response: CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data)),
+                errors: arregloErrores
+            })
+            // } catch (error) {
+            //     let message = '';
+            //     JSON.stringify(error.code);
+            //     if (error && error?.code) {
+            //         message = errorCodes[error.code];
+            //     } else {
+            //         message = error.message;
+            //     }
+            //     res.status(500).send({
+            //         message
+            //     });
+            // }
 
         } catch (err) {
             res.status(500).send({
@@ -286,6 +304,7 @@ class UserController {
         }
 
     }
+
     async getEmpleados(req, res, next) {
         const user = await tokenController.getUserIdByToken(req, res, next);
         let data;
@@ -294,10 +313,14 @@ class UserController {
                 // traer solo los empleados
                 data = await User.find({ 'empleado': true })
             }
-            res.json({
-                message: 'respuesta satisfactoria',
-                response: data
-            })
+            if (data.length > 0) {
+                const encryptedData = CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data));
+                res.json({
+
+                    message: 'respuesta satisfactoria',
+                    response: encryptedData
+                })
+            }
         } catch (error) {
             res.status(500).send({
                 message:
