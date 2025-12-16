@@ -14111,12 +14111,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x0E0f426Ee377945888a75662A545a5aA9B78CBf7",
-      "transactionHash": "0xf5f37b8a9cac00819f2e70fcb4d76dac8abdd41fde7c6913895315647d53133b"
+      "address": "0xCCA9A2F38636f3B006546744e30795De8e602F2A",
+      "transactionHash": "0x01351ef55de6761faed11bd9963bf0bf3f790125ccce941eaed404641a9d1844"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2025-05-21T02:20:11.511Z",
+  "updatedAt": "2025-12-16T01:24:22.544Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

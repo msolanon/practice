@@ -1,0 +1,3 @@
+module.exports = {
+    privateKey: `MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgH/p6HyJXzST3gGNtDGRTCczVnYjc1NA/LVeowyeaThaibPAe0D6esREXJoAspx8A+ThCPcrcLmBED1or5giQQbsetARugWKVgKhzkARVxIdPio+Ghp+ooXCymcOWoWHP8jr98pSCbMrLQUhkfb7UsP8k/H461ebmvNJYdIVXd63AgMBAAE=`
+}
