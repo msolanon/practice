@@ -88,7 +88,7 @@ module.exports = {
           <!-- Body -->
           <div class="body">
             <p style="margin:0 0 10px 0;">
-              <strong>Estimado(a) {nombre}:</strong>
+              <strong>Estimado(a) {{nombre}}:</strong>
             </p>
 
             <p class="muted">
@@ -106,21 +106,21 @@ module.exports = {
               <div class="cred-row" role="row">
                 <div class="cred-cell" style="width:33%">
                   <div class="cred-label">Cédula</div>
-                  <div class="cred-value">{cedula}</div>
+                  <div class="cred-value">{{cedula}}</div>
                 </div>
                 <div class="cred-cell" style="width:33%">
                   <div class="cred-label">Carné</div>
-                  <div class="cred-value">{carne}</div>
+                  <div class="cred-value">{{carne}}</div>
                 </div>
                 <div class="cred-cell" style="width:34%">
                   <div class="cred-label">Contraseña</div>
-                  <div class="cred-value">{contrasena}</div>
+                  <div class="cred-value">{{contrasena}}</div>
                 </div>
               </div>
             </div>
 
             <p class="muted">
-              Si tiene algún problema para ingresar, responda este correo o contacte a soporte.
+              Si tiene algún problema para ingresar, responda a este correo o contacte a soporte.
             </p>
           </div>
 

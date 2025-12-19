@@ -1,8 +1,7 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const { mailTemplate } = require("./mailTemplate");
-const { google } = require('googleapis');
-const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN } = require('../config');
+const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN, ACCESS_TOKEN } = require('../config');
 
 
 class UtilsController {
@@ -14,8 +13,10 @@ class UtilsController {
                 auth: {
                     type: 'OAuth2',
                     user: 'cfiavotaciones@gmail.com',
-                    clientId: "900223720690-l0o1cclrig453d4hn9c2snjdimhd23u6.apps.googleusercontent.com",
-
+                    clientId: CLIENT_ID,
+                    clientSecret: CLIENT_SECRET,
+                    refreshToken: REFRESH_TOKEN,
+                    accessToken: ACCESS_TOKEN
                 }
             });
             const variables = {

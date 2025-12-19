@@ -9,6 +9,8 @@ const txLogController = require('./txLog.controller');
 
 
 class GanadorController {
+
+    //actualiza o inserta un nuevo ganador (no asambleista)
     async upsertGanador(colegioId, cargoId, userId) {
         try {
             if (colegioId && cargoId) {
@@ -51,6 +53,7 @@ class GanadorController {
         return data;
     }
 
+    // se utiliza para el dropdown
     async getGanador(colegioId, cargoId) {
         try {
             if (colegioId && cargoId) {
@@ -85,10 +88,6 @@ class GanadorController {
             });
         } catch (error) {
         }
-    }
-
-
-    async asignarGanador(req, res, next) {
     }
 
     async asignarGanadorAsamblea(req, res, next) {
