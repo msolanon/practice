@@ -48,10 +48,8 @@ class UserController {
                     });
                 });
             }
-
-
             if (data.length > 0) {
-                const encryptedData = CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data));
+                const encryptedData = CryptoUtils.encrypt(privateKey, JSON.stringify(data));
                 res.json({
                     message: 'respuesta satisfactoria',
                     response: encryptedData
@@ -176,7 +174,7 @@ class UserController {
             if (usuarios) userLength = usuarios.length;
             // try {
             if (req.body) {
-                const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey.privateKey, req.body.data));
+                const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey, req.body.data));
                 for (let i = 0; i < decryptData.data.length; i++) {
                     let userPassword = await utilsController.addPassword();
                     let userAccount = cuentas[userLength];
@@ -199,7 +197,7 @@ class UserController {
             }
             res.json({
                 message: 'Usuario creado',
-                response: CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data)),
+                response: CryptoUtils.encrypt(privateKey, JSON.stringify(data)),
                 errors: arregloErrores
             })
             // } catch (error) {
@@ -305,6 +303,7 @@ class UserController {
 
     }
 
+    // tabla empleados
     async getEmpleados(req, res, next) {
         const user = await tokenController.getUserIdByToken(req, res, next);
         let data;
@@ -314,9 +313,8 @@ class UserController {
                 data = await User.find({ 'empleado': true })
             }
             if (data.length > 0) {
-                const encryptedData = CryptoUtils.encrypt(privateKey.privateKey, JSON.stringify(data));
+                const encryptedData = CryptoUtils.encrypt(privateKey, JSON.stringify(data));
                 res.json({
-
                     message: 'respuesta satisfactoria',
                     response: encryptedData
                 })
@@ -324,7 +322,7 @@ class UserController {
         } catch (error) {
             res.status(500).send({
                 message:
-                    err.message || "Error"
+                    error.message || "Error"
             });
         }
 
