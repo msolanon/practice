@@ -67,26 +67,40 @@ class GanadorController {
 
     async ganadores(req, res, next) {
         try {
+            console.log('ID del colegio recibido:', req.params.idColegio);
             const cargoAsamblea = await cargo.findOne({ tipo: 'Asamblea de Representantes' });
+            console.log('Cargo de Asamblea obtenido:', cargoAsamblea);
             const arrayGanadores = await ganador.find({
                 "colegioId": new mongoose.Types.ObjectId(req.params.idColegio),
                 "cargoId": cargoAsamblea['_id']
             }).populate('userId').then(doc => {
                 return doc.map(member => {
                     // arreglo d colegios
-                    return {
-                        _id: member['userId']['_id'],
-                        nombreCompleto: member['userId'].nombreCompleto,
-                        idColegio: new mongoose.Types.ObjectId(req.params.idColegio),
-                        cargoId: cargoAsamblea['_id']
-                    };
+                    console.log('Miembro ganador obtenido:', member);
+                    if (member) {
+                        return {
+                            _id: member['userId'] ? member['userId']['_id'] : '',
+                            nombreCompleto: member['userId'] ? member['userId'].nombreCompleto : '',
+                            idColegio: new mongoose.Types.ObjectId(req.params.idColegio),
+                            cargoId: cargoAsamblea['_id']
+                        };
+                    } else {
+                        return {};
+                    }
+
                 });
             });
+            console.log('Ganadores obtenidos:', arrayGanadores);
             res.json({
                 message: 'Ganadores Obtenidos',
                 response: arrayGanadores
             });
         } catch (error) {
+            res.status(500).send({
+                message:
+                    err.message || "No existen ganadores"
+            });
+            console.error('Error al obtener ganadores:', error);
         }
     }
 

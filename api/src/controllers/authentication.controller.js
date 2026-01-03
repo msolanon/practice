@@ -5,6 +5,7 @@ const CryptoUtils = require("../utils/CryptoUtils");
 
 class AuthenticationController {
     async signin(req, res) {
+        console.log('Datos recibidos en signin:', req.body.data);
         try {
             const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey, req.body.data));
             console.log('Datos desencriptados en signin:', decryptData);

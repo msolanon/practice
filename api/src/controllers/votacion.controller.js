@@ -21,6 +21,7 @@ class VotacionController {
 
             if (user.isAdmin) {
                 const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey, req.body.data));
+                console.log('Datos para crear votacion en el API:', decryptData.data);
                 const {
                     colegio,
                     cargo,
@@ -54,6 +55,12 @@ class VotacionController {
                             });
 
                             counter = Number(counter);
+                            console.log('datos enviados a blockchain: ', JSON.stringify({
+                                cargo,
+                                candidatos,
+                                solidityStartDate,
+                                solidityEndDate
+                            }));
                             const transaction = await simpleVoting
                                 .methods.createBallot(
                                     cargo, candidatos, solidityStartDate, solidityEndDate
@@ -66,6 +73,17 @@ class VotacionController {
 
                             // cantidad de usuarios activos en este momento;
                             let userActivos = await userController.userByColegioEstado(colegio['_id']);
+                            console.log('informacion enviada a base de datos', JSON.stringify({
+                                cargo,
+                                tipoVotacion,
+                                fechaHoraInicio: fechaHoraInicio_,
+                                fechaHoraFin: fechaHoraFin_,
+                                counter,
+                                candidatos: candidatosId,
+                                colegio: colegioId,
+                                estado: true,
+                                totalElectores: userActivos
+                            }))
                             data = await votacion.create({
                                 cargo,
                                 tipoVotacion,
@@ -126,6 +144,7 @@ class VotacionController {
                 from: user.cuenta//aún puede ser dinámico
             });
             const numberDate = (Number(ballot.startTime) * 1000)
+            console.log('Ballot obtenido:', JSON.stringify(ballot));
             res.json({
                 message: 'Votacion Obtenida',
                 response: {
@@ -198,6 +217,7 @@ class VotacionController {
                 tableData.push({ candidato: votacionData['candidatos'][i]['nombreCompleto'], votos: resultado })
             }
             votosCandidato.push({ 'candidato': candidatos, 'votos': votos, totalVotos, tableData })
+            console.log('Resultados obtenidos:', votosCandidato);
             const encryptedData = CryptoUtils.encrypt(privateKey, JSON.stringify({ data: votosCandidato }));
             console.log(encryptedData)
             res.json({
@@ -255,45 +275,63 @@ class VotacionController {
 
     async votar(req, res, next) {
         try {
+            const user = await tokenController.getUserIdByToken(req, res, next);
+            if (req.body) {
+                const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey, req.body.data));
+                const {
+                    id,
+                    counter,
+                    idVotacion,
+                    password
+                } = decryptData.data
+                if (password) {
+                    user.comparePassword(password, async (err, isMatch) => {
+                        if (err) throw err;
+                        if (!isMatch) {
+                            return res.status(401).send({
+                                message: "Contraseña incorrecta"
+                            });
+                        }
+                        console.log('Datos para votar en el API:', JSON.stringify({
+                            id,
+                            counter,
+                            idVotacion,
+                            cuenta: user.cuenta
 
+                        }));
 
-            let data = {};
-            try {
-                const user = await tokenController.getUserIdByToken(req, res, next);
-                if (req.body) {
-                    const decryptData = JSON.parse(CryptoUtils.decrypt(privateKey, req.body.data));
-                    const {
-                        id,
-                        counter,
-                        idVotacion
-                    } = decryptData.data
-                    console.log('Datos para votar:', id, counter, idVotacion);
-                    const transaction = await simpleVoting
-                        .methods.cast(counter, id)
-                        .send({
-                            from: user.cuenta,//dinamico despúes
-                            gas: 3000000
-                        });
+                        try {
+                            const transaction = await simpleVoting
+                                .methods.cast(counter, id)
+                                .send({
+                                    from: user.cuenta,//dinamico despúes
+                                    gas: 3000000
+                                });
 
-                    const date = await web3.eth.getBlock(transaction.blockNumber)
-                    await txLogController.agregarTxLog(transaction.transactionHash, new Date(Number(date.timestamp) * 1000), transaction.blockNumber, new mongoose.Types.ObjectId(idVotacion), 'Voto')
-
-                    const response = CryptoUtils.encrypt(privateKey, JSON.stringify({
-                        hash: transaction.transactionHash,
-                        numeroBloque: Number(transaction.blockNumber),
-                    }));
-                    console.log('Response votacion:', response);
-                    res.json({
-                        message: 'Voto almacenado',
-                        response
+                            console.log('transaction hash:', transaction.transactionHash);
+                            const date = await web3.eth.getBlock(transaction.blockNumber)
+                            await txLogController.agregarTxLog(transaction.transactionHash, new Date(Number(date.timestamp) * 1000), transaction.blockNumber, new mongoose.Types.ObjectId(idVotacion), 'Voto')
+                            const response = CryptoUtils.encrypt(privateKey, JSON.stringify({
+                                hash: transaction.transactionHash,
+                                numeroBloque: Number(transaction.blockNumber),
+                            }));
+                            console.log('Response votacion:', response);
+                            res.json({
+                                message: 'Voto almacenado',
+                                response
+                            })
+                        } catch (error) {
+                            const solidityError = extractErrorCode(String(error.innerError));
+                            res.status(500).send({
+                                message: solidityError
+                            });
+                        }
                     })
+                } else {
+                    throw new Error('La contraseña es obligatoria para votar');
                 }
-            } catch (error) {
-                const solidityError = extractErrorCode(String(error.innerError));
-                res.status(500).send({
-                    message: solidityError
-                });
             }
+
         } catch (err) {
             res.status(500).send({
                 message:
@@ -341,6 +379,7 @@ class VotacionController {
             if (user.isAdmin) {
                 let updateVotacion = {};
                 const { votacionId, colegioId, idGanador, tipoVotacion, cargo } = req.body
+                console.log('Datos recibidos para cerrar votacion:', JSON.stringify({ votacionId, colegioId, idGanador, tipoVotacion, cargo }));
                 try {
                     if (votacionId) {
                         // pone la votacion inactiva
@@ -354,7 +393,7 @@ class VotacionController {
                         let updateGanador = await ganadorController.upsertGanador(colegioId, dataCargo['_id'], idGanador);
 
                         await txLogController.agregarTxLog('000000000000', new Date(), '0000000', votacionId, 'Cierre')
-
+                        console.log('Votacion cerrada:');
                         res.json({
                             message: 'Puesto asignado al ganador y votacion cerrada correctamente',
                             response: { votacion: votacionId, ganador: updateGanador }
