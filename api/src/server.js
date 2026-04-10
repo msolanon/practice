@@ -37,12 +37,12 @@ class App {
                     cert: fs.readFileSync(certPath, 'utf8')
                 };
 
-                https.createServer(sslOptions, this.app).listen(3000, '0.0.0.0', () =>
+                https.createServer(sslOptions, this.app).listen(3000, () =>
                     console.log('API REST (HTTPS) ejecutando en el puerto 3000')
                 );
             } else {
                 console.warn('Certificados HTTPS no encontrados; arrancando servidor en HTTP en el puerto 3000');
-                http.createServer(this.app).listen(3000, '0.0.0.0', () =>
+                http.createServer(this.app).listen(3000, () =>
                     console.log('API REST (HTTP) ejecutando en el puerto 3000')
                 );
             }
@@ -50,7 +50,13 @@ class App {
     }
 
     async database() {
-        await mongoose.connect(db.uri, { useNewUrlParser: true });
+        const env = process.env.NODE_ENV || 'desarrollo';
+        console.log(`Entorno actual: ${env}`);
+        if (env === 'desarrollo') {
+            console.log('Conectando a la base de datos de desarrollo...');
+            await mongoose.connect(db.develop, { useNewUrlParser: true });
+        }
+
     }
 
     middlewares() {

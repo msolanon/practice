@@ -13,7 +13,9 @@ class GanadorController {
     //actualiza o inserta un nuevo ganador (no asambleista)
     async upsertGanador(colegioId, cargoId, userId) {
         try {
+            console.log('Upsert Ganador - colegioId:', colegioId, 'cargoId:', cargoId, 'userId:', userId);
             if (colegioId && cargoId) {
+                console.log('Upsert Ganador - colegioId:', colegioId, 'cargoId:', cargoId, 'userId:', userId);
                 let data = await ganador.updateOne(
                     // Query filter to find the document
                     { colegioId: new mongoose.Types.ObjectId(colegioId), cargoId: new mongoose.Types.ObjectId(cargoId) },

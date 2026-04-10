@@ -166,6 +166,14 @@ class UserController {
 
     async agregarMiembro(req, res, next) {
         try {
+            // console.log('Cuerpo de la solicitud recibido en agregarMiembro:');
+            const user = await tokenController.getUserIdByToken(req, res, next);
+            if (!user.isAdmin) {
+                return res.status(500).send({
+                    message:
+                        "El usuario no posee permisos para agregar miembros"
+                });
+            }
             let data = [];
             let userLength = 0;
             const arregloErrores = []
@@ -188,7 +196,6 @@ class UserController {
                     if (newUser && newUser?.cedula) {
                         data.push(newUser);
                     }
-                    console.log('userPassword', userPassword, 'cuenta: ', userAccount);
                     if (newUser && newUser.correo) {
                         await utilsController.enviarCorreo(newUser.cedula, newUser.carne, newUser.correo, userPassword, newUser.nombreCompleto);
                     }

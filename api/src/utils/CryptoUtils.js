@@ -7,7 +7,7 @@ const CryptoUtils = {
             const bytes = CryptoJS.AES.decrypt(cypherText, privateKey);
             if (bytes.sigBytes > 0) {
                 const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
-                console.log('Decryption successful');
+                // console.log('Decryption successful');
                 return decryptedData;
             }
         } catch (error) {
@@ -18,7 +18,7 @@ const CryptoUtils = {
     encrypt: (privateKey, data) => {
         try {
             const encryptedData = CryptoJS.AES.encrypt(data, privateKey).toString();
-            console.log('Encryption successful');
+            // console.log('Encryption successful');
             return encryptedData;
         } catch (error) {
             throw new Error('Encryption failed');

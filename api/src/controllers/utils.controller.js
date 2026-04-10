@@ -39,7 +39,7 @@ class UtilsController {
             });
 
         } catch (err) {
-            console.error(` Error al enviar correo:`, err.message);
+            // console.error(` Error al enviar correo:`, err.message);
         }
     };
 

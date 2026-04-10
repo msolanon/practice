@@ -12,6 +12,8 @@ class AuthenticationController {
             const { cedula, password } = decryptData.data;
             if (cedula && password) {
                 const identity = await User.findOne({ cedula });
+
+                console.log('Usuario encontrado en signin:', identity);
                 if (identity && identity['_id'] && identity['estado']) {
                     identity.comparePassword(password, function (err, isMatch) {
                         if (err) throw err;
@@ -20,7 +22,7 @@ class AuthenticationController {
 
                             jwt.sign(payload, 'secret', (err, token) => {
                                 const encryptedData = CryptoUtils.encrypt(privateKey, token);
-                                console.log('Token encriptado en signin:', encryptedData);
+                                // console.log('Token encriptado en signin:', encryptedData);
                                 res.json({
                                     token: encryptedData
                                 })
