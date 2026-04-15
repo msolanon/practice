@@ -90,7 +90,7 @@ class VotacionController {
                             estado: true,
                             totalElectores: userActivos
                         }))
-                        data = await votacion.create({
+                        let mongoData = {
                             cargo,
                             tipoVotacion,
                             fechaHoraInicio: fechaHoraInicio_,
@@ -100,8 +100,11 @@ class VotacionController {
                             colegio: colegioId,
                             estado: true,
                             totalElectores: userActivos
-
-                        }); //add counter
+                        }
+                        if (tipoVotacion === 'Asamblea de Representantes') {
+                            mongoData['cantidad'] = decryptData.data.cantidad;
+                        }
+                        data = await votacion.create(mongoData); //add counter
 
                         const date = await web3.eth.getBlock(transaction.blockNumber)
                         await txLogController.agregarTxLog(transaction.transactionHash, new Date(Number(date.timestamp) * 1000), transaction.blockNumber, data['_id'], 'Apertura Votación')
@@ -217,9 +220,9 @@ class VotacionController {
                 tableData.push({ candidato: votacionData['candidatos'][i]['nombreCompleto'], votos: resultado })
             }
             votosCandidato.push({ 'candidato': candidatos, 'votos': votos, totalVotos, tableData })
-            console.log('Resultados obtenidos:', votosCandidato);
+            // console.log('Resultados obtenidos:', votosCandidato);
             const encryptedData = CryptoUtils.encrypt(privateKey, JSON.stringify({ data: votosCandidato }));
-            console.log(encryptedData)
+            // console.log(encryptedData)
             res.json({
                 message: 'Resultados Obtenidos',
                 data: encryptedData
@@ -240,16 +243,19 @@ class VotacionController {
             const votacionData = await votacion.findOne({ counter: Number(counter) })
                 .populate('candidatos')
                 .exec();
-
+            console.log('Votacion para obtener ganador:', JSON.stringify(votacionData));
             let winner;
             if (votacionData.tipoVotacion !== 'Asamblea de Representantes') {
                 winner = await simpleVoting.methods.winners(counter).call({
                     from: user.cuenta
                 });
             } else {
+                console.log('Obteniendo ganadores para Asamblea de Representantes');
+                console.log('Counter para obtener ganadores:', counter, 'Cantidad de ganadores:', votacionData.cantidad);
                 winner = await simpleVoting.methods.winnersWithLimit(counter, votacionData.cantidad).call({
                     from: user.cuenta
                 });
+                console.log('Ganadores obtenidos para Asamblea de Representantes:', JSON.stringify(winner));
             }
 
             // arreglo con candidatos
