@@ -149,6 +149,7 @@ class UserController {
                 }
             }
             if (data.length > 0) {
+                data = data.filter(element => element.isAdmin === false);
                 res.json({
                     message: 'respuesta satisfactoria',
                     response: data
