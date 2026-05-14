@@ -65,10 +65,14 @@ module.exports = {
     // options below to some value.
     //
     development: {
-     host: "127.0.0.1",     // Localhost (default: none)
-     port: 9545,            // Standard Ethereum port (default: none)
-     network_id: "5777",       // Any network (default: none)
+      host: "127.0.0.1",     // Localhost (default: none)
+      port: 9545,            // Standard Ethereum port (default: none)
+      network_id: "5777",       // Any network (default: none)
     },
+    'truffle-dashboard': {
+      url: "http://localhost:24012/rpc",
+      network_id: "5777"
+    }
     //
     // An additional network, but with some advanced options…
     // advanced: {
